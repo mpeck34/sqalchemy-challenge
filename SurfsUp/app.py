@@ -71,6 +71,28 @@ def precipitation():
     return jsonify(precipitation_list)
 
 
+### NEEDS EDITING
+@app.route("/api/v1.0/stations")
+def stations():
+    session = Session(engine)
+    results = session.query(Station.station).all()
+    session.close()
+
+    return results
+
+# @app.route("/api/v1.0/tobs")
+
+# /api/v1.0/<start> and /api/v1.0/<start>/<end>
+
+@app.route("/api/v1.0/measurements")
+def names():
+    session = Session(engine)
+    results = session.query(Measurement.name).all()
+    session.close()
+
+    all_names = [name for (name,) in results]
+    return jsonify(all_names)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
