@@ -64,32 +64,20 @@ def welcome():
         f"/api/v1.0/2014-01-1/2015-01-1"
     )
 
-
+# Return precipitation data
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     session = Session(engine)
 
+    # Collect data, all precipitation data added into respective dates
     results = session.query(Measurement.date, func.round(func.sum(Measurement.prcp),2)).group_by(Measurement.date).all()
     session.close()
 
+    # Create dict for json
     precipitation_dict = {}
 
     for date, prcp_sum in results:
         precipitation_dict[date] = prcp_sum
-
-    return jsonify(precipitation_dict)
-
-    results = session.query(Measurement.date, Measurement.prcp).all()
-    session.close()
-
-
-    precipitation_dict = {}
-
-    for date, prcp in results:
-        if date in precipitation_dict:
-            precipitation_dict[date].append(prcp)
-        else:
-            precipitation_dict[date] = [prcp]
 
     return jsonify(precipitation_dict)
 
@@ -98,7 +86,11 @@ def precipitation():
 @app.route("/api/v1.0/stations")
 def stations():
     session = Session(engine)
+
+    # Simple query for station ids
     results = session.query(Station.station).all()
+
+    # Create list
     station_ids = [row[0] for row in results]
     session.close()
 
@@ -112,11 +104,8 @@ def tobs():
     # Get the date from one year before the most recent date
     most_recent_date = session.query(Measurement.date).order_by(Measurement.date.desc()).\
                         first()
-    
     most_recent_date_str = most_recent_date[0]
-    
     most_recent_date_obj = dt.datetime.strptime(most_recent_date_str, '%Y-%m-%d')
-    
     one_year_ago_date = most_recent_date_obj - dt.timedelta(days=365)
 
     # Get the active stations and then find the most active station
@@ -142,18 +131,22 @@ def tobs():
 def start_date(start):
     session = Session(engine)
 
+    # Get the temps from the start date
     dates_temps = session.query(Measurement.date, Measurement.tobs).\
         filter(Measurement.date >= start).\
         order_by(Measurement.date).all()
     
+    # Get default last date in the .csv for display
     final_date = session.query(Measurement.date).\
                 order_by(Measurement.date.desc()).first()
 
+    # Statistics
     start_df = pd.DataFrame(dates_temps, columns=['dates', 'tobs'])
     start_min = start_df['tobs'].min()
     start_max = start_df['tobs'].max()
     start_mean = start_df['tobs'].mean()
 
+    # Create dict for json
     start_dict = {
         "Start Date": start,
         "End Date (Default)": final_date[0],
@@ -162,6 +155,8 @@ def start_date(start):
         "Average Temp": start_mean
     }
 
+    session.close()
+
     return jsonify(start_dict)
 
 # Find temperature min, max and average in between start and end date
@@ -169,16 +164,19 @@ def start_date(start):
 def date_range(start, end):
     session = Session(engine)
 
+    # Get the temps from the start date to the end date
     dates_temps = session.query(Measurement.date, Measurement.tobs).\
         filter(Measurement.date >= start).\
         filter(Measurement.date <= end).\
         order_by(Measurement.date).all()
     
+    # Statistics
     start_end_df = pd.DataFrame(dates_temps, columns=['dates', 'tobs'])
     start_end_min = start_end_df['tobs'].min()
     start_end_max = start_end_df['tobs'].max()
     start_end_mean = start_end_df['tobs'].mean()
 
+    # Create dict for json
     start_end_dict = {
         "Start Date": start,
         "End Date": end,
@@ -186,6 +184,8 @@ def date_range(start, end):
         "Maximum Temp": start_end_max,
         "Average Temp": start_end_mean
     }
+
+    session.close()
 
     return jsonify(start_end_dict)
 
