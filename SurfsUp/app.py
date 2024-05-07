@@ -54,9 +54,14 @@ def welcome():
         f"/api/v1.0/stations<br/>"
         f"<br/>One year's worth of temperatures from the most active station:<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"<br/>Start and end?<br/>"
-        f"/api/v1.0/<start><br/>"
-        f"/api/v1.0/<start>/<end>"
+        f"<br/>Temperatures within date ranges:<br/>"
+        f"Available date ranges: 2010-01-1 to 2017-08-23"
+        f"<br/>Starting date only:<br/>"
+        f"/api/v1.0/2010-01-1 <br/>"
+        f"<br/>Start and end date:<br/>"
+        f"/api/v1.0/2010-01-1/2017-08-23<br/>"
+        f"<br/>Quick test date range:<br/>"
+        f"/api/v1.0/2014-01-1/2015-01-1"
     )
 
 
@@ -94,9 +99,10 @@ def precipitation():
 def stations():
     session = Session(engine)
     results = session.query(Station.station).all()
+    station_ids = [row[0] for row in results]
     session.close()
 
-    return jsonify(results)
+    return jsonify(station_ids)
 
 # Return one year of temp observations from the most active station
 @app.route("/api/v1.0/tobs")
@@ -131,8 +137,57 @@ def tobs():
 
     return jsonify(year_temps)
 
-# /api/v1.0/<start> and /api/v1.0/<start>/<end>
+# Find temperature min, max and average after start date
+@app.route("/api/v1.0/<start>")
+def start_date(start):
+    session = Session(engine)
 
+    dates_temps = session.query(Measurement.date, Measurement.tobs).\
+        filter(Measurement.date >= start).\
+        order_by(Measurement.date).all()
+    
+    final_date = session.query(Measurement.date).\
+                order_by(Measurement.date.desc()).first()
+
+    start_df = pd.DataFrame(dates_temps, columns=['dates', 'tobs'])
+    start_min = start_df['tobs'].min()
+    start_max = start_df['tobs'].max()
+    start_mean = start_df['tobs'].mean()
+
+    start_dict = {
+        "Start Date": start,
+        "End Date (Default)": final_date[0],
+        "Minimum Temp": start_min,
+        "Maximum Temp": start_max,
+        "Average Temp": start_mean
+    }
+
+    return jsonify(start_dict)
+
+# Find temperature min, max and average in between start and end date
+@app.route("/api/v1.0/<start>/<end>")
+def date_range(start, end):
+    session = Session(engine)
+
+    dates_temps = session.query(Measurement.date, Measurement.tobs).\
+        filter(Measurement.date >= start).\
+        filter(Measurement.date <= end).\
+        order_by(Measurement.date).all()
+    
+    start_end_df = pd.DataFrame(dates_temps, columns=['dates', 'tobs'])
+    start_end_min = start_end_df['tobs'].min()
+    start_end_max = start_end_df['tobs'].max()
+    start_end_mean = start_end_df['tobs'].mean()
+
+    start_end_dict = {
+        "Start Date": start,
+        "End Date": end,
+        "Minimum Temp": start_end_min,
+        "Maximum Temp": start_end_max,
+        "Average Temp": start_end_mean
+    }
+
+    return jsonify(start_end_dict)
 
 if __name__ == "__main__":
     app.run(debug=True)
